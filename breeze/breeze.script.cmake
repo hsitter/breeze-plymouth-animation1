@@ -1,6 +1,6 @@
 /*
-    SPDX-FileCopyrightText: 2012-2016 Harald Sitter <sitter@kde.org>
-    SPDX-FileCopyrightText: 2009 Canonical Ltd. 
+    SPDX-FileCopyrightText: 2012-2021 Harald Sitter <sitter@kde.org>
+    SPDX-FileCopyrightText: 2009 Canonical Ltd.
     SPDX-FileContributor:  Alberto Milone <alberto.milone@canonical.com>
     Based on the example provided with the "script plugin" written by:
     SPDX-FileContributor: Charlie Brej   <cbrej@cs.man.ac.uk>
@@ -214,7 +214,7 @@ global.logger = Logger();
  */
 fun TextYOffset() {
     // Put the 1st line below the logo.
-    local.y = spin.GetY() + spin.GetHeight();
+    local.y = logo_animation.GetY() + logo_animation.GetHeight();
     local.text_height = first_line_height * 7.5;
     // The maximum Y we may end at, if we exceed this we'll try to scoot up
     // a bit. This includes the Window offset itself as we position ourselves
@@ -233,8 +233,8 @@ fun TextYOffset() {
     // If the y would overlap with the Spinner (bottom most element of the
     // static cruft) we move it further down so that at least half a line of
     // space is between the spinner and our y.
-    if (y < spin.GetY() + spin.GetHeight() + first_line_height / 2) {
-        y = spin.GetY() + spin.GetHeight() + first_line_height / 2;
+    if (y < logo_animation.GetY() + logo_animation.GetHeight() + first_line_height / 2) {
+        y = logo_animation.GetY() + logo_animation.GetHeight() + first_line_height / 2;
     }
 
     return y;
@@ -335,6 +335,7 @@ Logo = fun() {
     logo.y = Window.GetY() + Window.GetHeight() / 2 - logo.height / 2;
     logo.z = 1000;
     logo.SetPosition(logo.x, logo.y, logo.z);
+    logo.SetOpacity(0);
 
     logo.name = Sprite(title.text.ToImage(NULL, defaults.font.title));
     logo.name.x = Window.GetX() + Window.GetWidth() / 2 - logo.name.GetImage().GetWidth() / 2;
@@ -349,67 +350,51 @@ Logo = fun() {
 
 Logo.SetOpacity_ = fun(o) {
     o = Math.Clamp(o, 0.0, 1.0);
-    this.SetOpacity(o);
-    this.name.SetOpacity(o);
+    this.SetOpacity(0);
+    this.name.SetOpacity(0);
 };
 
 logo = Logo();
 logo.SetOpacity_(0);
 
-
 // ----------------------------- Busy Animation ----------------------------- //
 
-Spinner = fun() {
-    // FIXME: try to use this=
-    spinner = global.Spinner | [];
-    spinner.count = 360;
-    spinner.current_idx = 0;
-    spinner.last_time = 0;
-    spinner.steps = 10.0; // We render degrees in increments of 10 to save disk.
-    spinner.duration = 1.5; // Seconds per rotation.
-    for (i = 0; i <= spinner.count; ++i) {
-        if (i % spinner.steps != 0) {
-            continue;
-        }
-        spinner[i] = SpriteImage(assets.spinner_base + "/spinner" + i + ".png");
-        center_offset = (logo.width / 2) - (spinner[i].width / 2);
-        top_offset = logo.height + spinner[i].height;
-        spinner[i].SetPosition(logo.GetX() + center_offset, logo.GetY() + top_offset, logo.GetZ());
-        spinner[i].SetOpacity(0);
+LogoAnimation = fun() {
+    this = global.LogoAnimation | [];
+    this.count = 127;
+    this.current_idx = 0;
+    w = (Window.GetX() + Window.GetWidth() / 2) - (1920/2);
+    h = (Window.GetY() + Window.GetHeight() / 2) - (1080/2);
+    for (i = 0; i <= this.count; ++i) {
+        this[i] = SpriteImage("images/logo-animation/" + i + ".png");
+        # DebugMedium("images/logo-animation2/" + i + ".png");
+        this[i].SetPosition(w, h, -1000);
+        this[i].SetOpacity(0);
     }
-    return spinner;
+    return this;
 } | [];
 
-Spinner.Animate = fun(time) {
-    degrees = Math.Int(((2 * Math.Pi / duration) * time) * (180 / Math.Pi));
-    new = degrees % count;
+LogoAnimation.Animate = fun() {
     old = current_idx;
-    if (Math.Int(new) < Math.Int((old + steps) % count)) {
-        // Every $steps degrees we can render a frame, all others we skip.
+    new = current_idx + 1;
+    if (new > this.count) {
         return;
     }
-    // We set a second new which is now a correct index bump by coercing it
-    // into a multiple of 10.
-    new = Math.Int(new / steps) * steps;
-    // Debug("going from " + old + " to " + new);
-    // dps = time - last_time;
-    // DebugMedium("dps " + dps*35);
-    // last_time = time;
     this[old].SetOpacity(0);
     this[new].SetOpacity(1);
     current_idx = new;
     return this;
 };
 
-Spinner.GetY = fun() {
+LogoAnimation.GetY = fun() {
     return this[0].GetY();
 };
 
-Spinner.GetHeight = fun() {
+LogoAnimation.GetHeight = fun() {
     return this[0].height;
 };
 
-global.spin = Spinner();
+global.logo_animation = LogoAnimation();
 
 // ---------------------------- State & Spacing ----------------------------- //
 
@@ -437,8 +422,7 @@ top_of_the_text = TextYOffset();
  * \param progress boot progress in % (real 0.0 to 1.0)
  */
 fun boot_progress_cb(time, progress) {
-    spin.Animate(time);
-    logo.SetOpacity_(time * 2.0);
+    logo_animation.Animate();
 }
 Plymouth.SetBootProgressFunction (boot_progress_cb);
 
