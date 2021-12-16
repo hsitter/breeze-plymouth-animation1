@@ -1,6 +1,6 @@
 [Plymouth Theme]
 Name=Neon Shrink 1080
-Description=
+Description=Shrinking neon logo
 ModuleName=script
 
 [script]
